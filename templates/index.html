@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8">
+        <div class="card shadow">
+            <div class="card-body p-4">
+                <h2 class="mb-4 text-center">Recruitment Search Tool</h2>
+                
+                <!-- GitHub Search -->
+                <div class="search-section mb-5 p-4 bg-white rounded">
+                    <h4 class="mb-3">GitHub Search Tool</h4>
+                    <form action="/search/github" method="POST">
+                        <div class="input-group">
+                            <input type="text" class="form-control" 
+                                   placeholder="Enter keywords from job description..."
+                                   name="keywords" required>
+                            <button type="submit" class="btn btn-primary">Search</button>
+                        </div>
+                        <p class="text-muted mt-2">Example: Machine Learning Quant</p>
+                    </form>
+                </div>
+
+                <!-- Kaggle Search -->
+                <div class="search-section p-4 bg-white rounded">
+                    <h4 class="mb-3">Kaggle Search Tool</h4>
+                    <form action="/search/kaggle" method="POST">
+                        <div class="input-group">
+                            <input type="url" class="form-control" 
+                                   placeholder="Paste Kaggle competition leaderboard link..."
+                                   name="url" required>
+                            <button type="submit" class="btn btn-primary">Search</button>
+                        </div>
+                        <p class="text-muted mt-2">Example: https://www.kaggle.com/competitions/titanic/leaderboard</p>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    document.querySelectorAll('form').forEach(form => {
+        form.addEventListener('submit', () => {
+            document.getElementById('loading').classList.remove('d-none');
+        });
+    });
+});
+</script>
+{% endblock %}
