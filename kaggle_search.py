@@ -7,6 +7,7 @@ from selenium.webdriver.support import expected_conditions as EC
 from webdriver_manager.chrome import ChromeDriverManager
 from bs4 import BeautifulSoup
 import time
+import random
 import os
 
 class KaggleScraper:
@@ -14,13 +15,14 @@ class KaggleScraper:
         self.options = Options()
         self.options.add_argument("--headless")
         self.options.add_argument("--disable-dev-shm-usage")
+        self.options.add_argument('--disable-gpu')
         self.options.add_argument("--no-sandbox")
         self.service = Service(ChromeDriverManager().install())
 
     def scrape_leaderboard(self, url):
         driver = webdriver.Chrome(service=self.service, options=self.options)
         driver.get(url)
-        time.sleep(5)
+        time.sleep(random.uniform(5, 10))
         
         usernames = []
         while True:
@@ -29,20 +31,20 @@ class KaggleScraper:
             usernames += current_batch
             
             try:
-                btn = WebDriverWait(driver, 5).until(
+                btn = WebDriverWait(driver, 7).until(
                     EC.element_to_be_clickable((By.XPATH, "//span[contains(text(), 'See')]"))
                 )
                 driver.execute_script("arguments[0].scrollIntoView(true);", btn)
                 btn.click()
-                time.sleep(3)
+                time.sleep(random.uniform(5, 10))
             except:
                 break
         
         driver.quit()
         
         results = []
-        for username in usernames[:100]:
-            if len(results) >= 5:
+        for username in usernames[:300]:
+            if len(results) >= 30:
                 break
             details = self.scrape_user_details(username)
             # CORRECTED FILTER CONDITION
@@ -54,7 +56,7 @@ class KaggleScraper:
     def scrape_user_details(self, username):
         driver = webdriver.Chrome(service=self.service, options=self.options)
         driver.get(f"https://www.kaggle.com/{username}")
-        time.sleep(3)
+        time.sleep(random.uniform(5,8))
         
         soup = BeautifulSoup(driver.page_source, 'html.parser')
         driver.quit()
