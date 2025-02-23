@@ -12,6 +12,9 @@ logging.basicConfig(level=logging.INFO)
 class GitHubSearch:
     def __init__(self):
         self.token = os.environ.get('GITHUB_TOKEN')
+        print(f"TOKEN EXISTS IN ENV: {'GITHUB_TOKEN' in os.environ}")
+        print(f"TOKEN LENGTH: {len(self.token) if self.token else 0}")
+        print(f"TOKEN STARTS WITH: {self.token[:6] if self.token else ''}")
         print(f"TOKEN EXISTS? {'GITHUB_TOKEN' in os.environ}")  # Verification line
         if self.token:
             print(f"DEBUG: Using token starting with {self.token[:6]}...")
