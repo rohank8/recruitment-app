@@ -3,11 +3,34 @@ from kaggle_search import KaggleScraper
 import os
 from github_search import GitHubSearch
 from threading import Thread
-
+from flask import make_response
+from functools import wraps
+# Initialize app FIRST
 app = Flask(__name__, static_url_path='/proxy/5000/static')
 app.secret_key = os.getenv('FLASK_SECRET_KEY', 'dev-secret-123')
 app.config['APPLICATION_ROOT'] = '/proxy/5000'
 app.config['PREFERRED_URL_SCHEME'] = 'https'
+
+def add_colab_headers(f):
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        response = make_response(f(*args, **kwargs))
+        # Modern security headers
+        response.headers['Content-Security-Policy'] = "frame-ancestors 'self' https://*.googleusercontent.com"
+        response.headers['X-Content-Type-Options'] = 'nosniff'
+        return response
+    return decorated_function
+
+# Apply to all routes using after_request
+@app.after_request
+def apply_colab_headers(response):
+    response = add_colab_headers(lambda: response)(*request.view_args)
+    return response
+# Apply to all routes using after_request
+@app.after_request
+def apply_colab_headers(response):
+    response = add_colab_headers(lambda: response)(*request.view_args)
+    return response
 
 @app.route('/')
 def index():
