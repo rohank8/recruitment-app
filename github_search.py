@@ -4,15 +4,13 @@ import time
 import re
 import base64
 from bs4 import BeautifulSoup
-from decouple import config
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from urllib.parse import quote
-
-logging.basicConfig(level=logging.INFO)
+import os
 
 class GitHubSearch:
     def __init__(self):
-        self.token = config('GITHUB_TOKEN')
+        self.token = os.environ.get('GITHUB_TOKEN')
         print(f"DEBUG: Using token starting with {self.token[:6]}...")
         self.headers = {'Authorization': f'token {self.token}'}
         self.base_api = 'https://api.github.com'
