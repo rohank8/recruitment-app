@@ -1,19 +1,25 @@
-from flask import Flask, render_template, request, redirect, url_for, flash, make_response
+from flask import Flask, render_template, request, redirect, url_for, flash, jsonify
 from kaggle_search import KaggleScraper
 from github_search import GitHubSearch
-from threading import Thread
+from concurrent.futures import ThreadPoolExecutor
 import os
+import uuid
 
-# Initialize app first
-app = Flask(__name__, static_url_path='/proxy/5000/static')
+# Initialize app
+app = Flask(__name__, static_url_path='/static')
 app.secret_key = os.getenv('FLASK_SECRET_KEY', 'dev-secret-123')
-app.config['APPLICATION_ROOT'] = '/proxy/5000'
+
+# Configure for Ngrok
 app.config['PREFERRED_URL_SCHEME'] = 'https'
+app.config['SERVER_NAME'] = 'localhost:5000'
+
+# Background task setup
+executor = ThreadPoolExecutor(2)
+jobs = {}
 
 # Security headers middleware
 @app.after_request
 def add_security_headers(response):
-    # Critical fix: Updated CSP and frame options
     response.headers['Content-Security-Policy'] = "frame-ancestors 'self' https://*.googleusercontent.com"
     response.headers['X-Frame-Options'] = 'ALLOW-FROM https://colab.research.google.com'
     response.headers['X-Content-Type-Options'] = 'nosniff'
@@ -23,7 +29,6 @@ def add_security_headers(response):
 def index():
     return render_template('index.html')
 
-# Removed /proxy/5000 from route - handled by APPLICATION_ROOT
 @app.route('/search/github', methods=['GET'])
 def github_search():
     try:
@@ -39,7 +44,7 @@ def github_search():
         
         if results['total_pages'] > page:
             for next_page in range(page + 1, min(page + 3, results['total_pages'] + 1)):
-                Thread(target=searcher.search_users, args=(search_term, next_page)).start()
+                executor.submit(searcher.search_users, search_term, next_page)
         
         return render_template('github_results.html',
                              results=results,
@@ -49,18 +54,47 @@ def github_search():
         flash(f'Search failed: {str(e)}', 'danger')
         return redirect(url_for('index'))
 
-# Removed /proxy/5000 from route
 @app.route('/search/kaggle', methods=['POST'])
 def kaggle_search():
-    scraper = KaggleScraper()
     try:
         url = request.form['url']
-        results = scraper.scrape_leaderboard(url)
-        return render_template('kaggle_results.html',
-                            users=results,
-                            search_term=url)
+        job_id = str(uuid.uuid4())
+        
+        # Submit to background thread
+        future = executor.submit(KaggleScraper().scrape_leaderboard, url)
+        jobs[job_id] = future
+        
+        return render_template('loading.html', job_id=job_id)
+        
     except Exception as e:
         flash(f'Scraping failed: {str(e)}', 'danger')
+        return redirect(url_for('index'))
+
+@app.route('/search/status/<job_id>')
+def check_status(job_id):
+    if job_id not in jobs:
+        return jsonify({'status': 'error', 'message': 'Invalid job ID'})
+    
+    future = jobs[job_id]
+    if future.done():
+        try:
+            result = future.result()
+            del jobs[job_id]
+            return jsonify({'status': 'complete', 'result': result})
+        except Exception as e:
+            return jsonify({'status': 'error', 'message': str(e)})
+    return jsonify({'status': 'processing'})
+
+@app.route('/search/kaggle/results')
+def kaggle_results():
+    try:
+        data = request.args.get('data')
+        results = eval(data)  # Caution: Only use with trusted data
+        return render_template('kaggle_results.html',
+                             users=results,
+                             search_term="Kaggle Leaderboard")
+    except:
+        flash('Error loading results', 'danger')
         return redirect(url_for('index'))
 
 if __name__ == '__main__':
