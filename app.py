@@ -1,31 +1,17 @@
 from flask import Flask, render_template, request, redirect, url_for, flash
-from flask_httpauth import HTTPBasicAuth
-from werkzeug.security import generate_password_hash, check_password_hash
 from kaggle_search import KaggleScraper
 import os
 from github_search import GitHubSearch
 from threading import Thread
 
 app = Flask(__name__)
-app.secret_key = 'your-secret-key-here'  # Change this for production
-auth = HTTPBasicAuth()
-
-# Authentication setup
-users = {
-    "admin": generate_password_hash(os.getenv('ADMIN_PASSWORD', 'securepassword123'))
-}
-
-@auth.verify_password
-def verify_password(username, password):
-    return username == "admin" and check_password_hash(users["admin"], password)
+app.secret_key = os.getenv('FLASK_SECRET_KEY', 'dev-secret-123')  # For flash messages
 
 @app.route('/')
-@auth.login_required
-def index():  # Changed from 'home' to 'index'
+def index():
     return render_template('index.html')
 
 @app.route('/search/github', methods=['GET'])
-@auth.login_required
 def github_search():
     try:
         search_term = request.args.get('q', '').strip()
@@ -52,7 +38,6 @@ def github_search():
         return redirect(url_for('index'))
 
 @app.route('/search/kaggle', methods=['POST'])
-@auth.login_required
 def kaggle_search():
     scraper = KaggleScraper()
     try:
