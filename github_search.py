@@ -2,17 +2,20 @@ import requests
 import logging
 import time
 import re
-import base64
+import os
 from bs4 import BeautifulSoup
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from urllib.parse import quote
-import os
+
+logging.basicConfig(level=logging.INFO)
 
 class GitHubSearch:
     def __init__(self):
         self.token = os.environ.get('GITHUB_TOKEN')
-        print(f"DEBUG: Using token starting with {self.token[:6]}...")
-        self.headers = {'Authorization': f'token {self.token}'}
+        print(f"TOKEN EXISTS? {'GITHUB_TOKEN' in os.environ}")  # Verification line
+        if self.token:
+            print(f"DEBUG: Using token starting with {self.token[:6]}...")
+        self.headers = {'Authorization': f'token {self.token}'} if self.token else {}
         self.base_api = 'https://api.github.com'
         self.max_workers = 4
         self.request_timeout = 30
@@ -96,17 +99,16 @@ class GitHubSearch:
 
     def _search_profile_matches(self, query):
         """Find users through profile search"""
-        users = []
-        for page in range(1, self.profile_search_limit + 1):
+        print(f"Final GitHub Query: {query}")  # Critical debug line
+        try:
             response = self._safe_get(
                 f'{self.base_api}/search/users',
-                params={'q': query, 'per_page': 30, 'page': page}
+                params={'q': query, 'per_page': 100}
             )
-            if not response:
-                break
-            users.extend(response.get('items', []))
-            time.sleep(1)
-        return users
+            return response.get('items', [])[:100]  # Return first 100 results
+        except Exception as e:
+            logging.error(f"Profile search failed: {str(e)}")
+            return []
 
     def _paginate_results(self, results, page):
         start = (page - 1) * self.results_per_page
@@ -200,13 +202,19 @@ class GitHubSearch:
         return None
 
     def _process_query(self, raw_query):
-        """Normalize search query"""
+        """Normalize search query with Colab compatibility"""
         processed = re.sub(r'\s*\+\s*', ' ', raw_query)
         processed = re.sub(r'(\b\w+\b)\s+OR\s+(\b\w+\b)', r'\1 OR \2', processed)
-        return re.sub(r'[^\w\s:+OR_\-"@]', '', processed).strip()
+        processed = re.sub(r'[^\w\s:+OR_\-"@]', '', processed).strip()
+        
+        # Add Colab-specific qualifiers if missing
+        if 'in:login' not in processed:
+            processed += " in:login in:name type:user"
+            
+        return quote(processed, safe=':+')
 
     def _extract_search_terms(self, raw_query):
-        """Extract keywords from query"""
+        """Extract keywords from query (UNCHANGED)"""
         terms = []
         for part in re.findall(r'"([^"]*)"|(\S+)', raw_query):
             term = part[0] or part[1]
