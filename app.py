@@ -4,14 +4,16 @@ import os
 from github_search import GitHubSearch
 from threading import Thread
 
-app = Flask(__name__)
-app.secret_key = os.getenv('FLASK_SECRET_KEY', 'dev-secret-123')  # For flash messages
+app = Flask(__name__, static_url_path='/proxy/5000/static')
+app.secret_key = os.getenv('FLASK_SECRET_KEY', 'dev-secret-123')
+app.config['APPLICATION_ROOT'] = '/proxy/5000'
+app.config['PREFERRED_URL_SCHEME'] = 'https'
 
 @app.route('/')
 def index():
     return render_template('index.html')
 
-@app.route('/search/github', methods=['GET'])
+@app.route('/proxy/5000/search/github', methods=['GET'])
 def github_search():
     try:
         search_term = request.args.get('q', '').strip()
@@ -24,7 +26,6 @@ def github_search():
         searcher = GitHubSearch()
         results = searcher.search_users(search_term, page)
         
-        # Preload next 2 pages in background
         if results['total_pages'] > page:
             for next_page in range(page + 1, min(page + 3, results['total_pages'] + 1)):
                 Thread(target=searcher.search_users, args=(search_term, next_page)).start()
@@ -37,7 +38,7 @@ def github_search():
         flash(f'Search failed: {str(e)}', 'danger')
         return redirect(url_for('index'))
 
-@app.route('/search/kaggle', methods=['POST'])
+@app.route('/proxy/5000/search/kaggle', methods=['POST'])
 def kaggle_search():
     scraper = KaggleScraper()
     try:
