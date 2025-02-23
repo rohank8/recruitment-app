@@ -29,6 +29,15 @@ def add_security_headers(response):
 def index():
     return render_template('index.html')
 
+@app.route('/debug/github')
+def debug_github():
+    searcher = GitHubSearch()
+    test_results = searcher.search_users("citadel", 1)
+    return jsonify({
+        "api_response": test_results,
+        "env_token": os.environ.get('GITHUB_TOKEN', 'MISSING')
+    })
+
 @app.route('/search/github', methods=['GET'])
 def github_search():
     try:
