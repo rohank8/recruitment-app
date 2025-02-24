@@ -3,7 +3,9 @@
 <div class="container">
   <div class="card shadow-lg mt-5">
     <div class="card-body text-center">
-      <h3 class="card-title mb-4">🔍 Processing Kaggle Search</h3>
+      <h3 class="card-title mb-4">
+        🔍 Processing {{ 'GitHub' if search_type == 'github' else 'Kaggle' }} Search
+      </h3>
       <div class="progress mb-4">
         <div class="progress-bar progress-bar-striped progress-bar-animated" 
              style="width: 100%"></div>
@@ -21,7 +23,15 @@
     .then(r => r.json())
     .then(data => {
       if(data.status === 'complete') {
-        window.location.href = `/search/kaggle/results?data=${encodeURIComponent(JSON.stringify(data.result))}`;
+        {% if search_type == 'github' %}
+          const params = new URLSearchParams({
+            data: JSON.stringify(data.result),
+            q: "{{ request.args.get('q', '') }}"
+          });
+          window.location.href = `/github-results?${params.toString()}`;
+        {% else %}
+          window.location.href = `/search/kaggle/results?data=${encodeURIComponent(JSON.stringify(data.result))}`;
+        {% endif %}
       } else if(data.status === 'error') {
         alert('Error: ' + data.message);
         window.location.href = '/';
